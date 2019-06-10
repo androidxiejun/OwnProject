@@ -1,23 +1,24 @@
-package com.example.netlibrary.Util;
+package com.example.netlibrary.nethelper;
 
 import android.content.Context;
 
 import com.example.netlibrary.api.INetService;
 import com.example.netlibrary.callback.INetCallback;
+import com.example.netlibrary.entity.bean.User;
 
 import java.io.File;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import io.reactivex.Observer;
-import io.reactivex.disposables.Disposable;
-import io.reactivex.schedulers.Schedulers;
 import okhttp3.Cache;
 import okhttp3.OkHttpClient;
 import retrofit2.Retrofit;
 import retrofit2.adapter.rxjava.RxJavaCallAdapterFactory;
 import retrofit2.converter.gson.GsonConverterFactory;
 import retrofit2.converter.scalars.ScalarsConverterFactory;
+import rx.Observable;
+import rx.android.schedulers.AndroidSchedulers;
+import rx.schedulers.Schedulers;
 
 /**
  * Created by AndroidXJ on 2019/6/4.
@@ -46,9 +47,9 @@ public class RetrofitClient {
 
     private static RetrofitClient mInstance;
 
-    public static synchronized RetrofitClient getmInstance(Context context) {
+    public static synchronized RetrofitClient getmInstance() {
         if (mInstance == null) {
-            mInstance = new RetrofitClient(context);
+            mInstance = new RetrofitClient();
         }
         return mInstance;
     }
@@ -61,7 +62,7 @@ public class RetrofitClient {
         this.BASE_URL = url;
     }
 
-    private RetrofitClient(Context context) {
+    public void init(Context context) {
         mContext = context.getApplicationContext();
         File httpCacheDirectory = new File(context.getCacheDir(), "responses");//设置缓存路径
         Cache cache = new Cache(httpCacheDirectory, 10 * 1024 * 1024);
@@ -92,35 +93,31 @@ public class RetrofitClient {
     }
 
     /**
-     *
      * @param url
      * @param maps
      * @param callback
      */
-    public void getData(String url, Map<String ,Object>maps, INetCallback callback){
-        mNetService.getData(url,maps)
-                .subscribeOn(Schedulers.io())
-                .observeOn(Schedulers.io())
-                .subscribe(new Observer<String>() {
-                    @Override
-                    public void onSubscribe(Disposable d) {
-
-                    }
-
-                    @Override
-                    public void onNext(String s) {
-
-                    }
-
-                    @Override
-                    public void onError(Throwable e) {
-
-                    }
-
-                    @Override
-                    public void onComplete() {
-
-                    }
-                });
+    public void getData(String url, Map<String, Object> maps, INetCallback callback) {
+        mNetService.getData(url, maps)
+                .compose(this.<User>applySchedulers())
+                .subscribe(new BaseSubscriber<User>(callback, mContext));
     }
+
+    /**
+     * Transformer   实现Observable的转化，提高代码的复用率
+     *
+     * @param <T>
+     * @return
+     */
+    <T> Observable.Transformer<T, T> applySchedulers() {
+        return new Observable.Transformer<T, T>() {
+            @Override
+            public Observable<T> call(Observable<T> observable) {
+                return observable.subscribeOn(Schedulers.io())
+                        .unsubscribeOn(Schedulers.io())
+                        .observeOn(AndroidSchedulers.mainThread());
+            }
+        };
+    }
+
 }

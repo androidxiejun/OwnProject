@@ -43,6 +43,19 @@ public class SerialPortService implements ISerialPortService {
 
     SerialPort mSerialPort;
 
+    private static SerialPortService mInstance;
+
+    public static SerialPortService getInstance() {
+        synchronized (SerialPortService.class) {
+            if (mInstance == null) {
+                synchronized (SerialPortService.class) {
+                    mInstance = new SerialPortService();
+                }
+            }
+        }
+        return mInstance;
+    }
+
     /**
      * 初始化串口
      *
@@ -51,7 +64,7 @@ public class SerialPortService implements ISerialPortService {
      * @param timeOut    数据返回超时时间
      * @throws IOException 打开串口出错
      */
-    public SerialPortService(String devicePath, int baudrate, Long timeOut) throws IOException {
+    public void init(String devicePath, int baudrate, Long timeOut) throws IOException {
         mTimeOut = timeOut;
         mDevicePath = devicePath;
         mBaudrate = baudrate;
